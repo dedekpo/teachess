@@ -1,6 +1,8 @@
 "use client";
 
 import type { PositionEval } from "@/lib/game-record";
+import { useLang } from "@/lib/i18n/LangProvider";
+import { UI } from "@/lib/i18n/ui";
 
 interface EvalBarProps {
   evaluation: PositionEval | null;
@@ -18,6 +20,7 @@ function whiteShare(ev: PositionEval | null): number {
 }
 
 export function EvalBar({ evaluation, flipped }: EvalBarProps) {
+  const t = UI[useLang()].evalBar;
   const share = whiteShare(evaluation);
   const whiteAhead = share >= 50;
   const label = evaluation ? evaluation.text.replace(/^([+-])/, "$1") : "0.0";
@@ -27,8 +30,8 @@ export function EvalBar({ evaluation, flipped }: EvalBarProps) {
   return (
     <div
       className="relative flex h-full w-5 shrink-0 select-none overflow-hidden rounded-sm bg-[#403d39]"
-      title={`Avaliação: ${label}`}
-      aria-label={`Avaliação ${label}`}
+      title={`${t.evaluation}: ${label}`}
+      aria-label={`${t.evaluation} ${label}`}
     >
       <div
         className="absolute left-0 w-full bg-[#f0f0f0] transition-[height] duration-500 ease-out"

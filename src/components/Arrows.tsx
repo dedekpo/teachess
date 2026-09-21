@@ -7,6 +7,8 @@ interface ArrowsProps {
   arrows: Arrow[];
   flipped: boolean;
   colors: Record<ArrowColor, string>;
+  /** Layer opacity (0..1); transitions smoothly so coach arrows can fade out. */
+  opacity?: number;
 }
 
 const WIDTH = 0.16;
@@ -47,14 +49,15 @@ function arrowPath(x1: number, y1: number, x2: number, y2: number, offset: numbe
   return "M" + pts.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join("L") + "Z";
 }
 
-export function Arrows({ arrows, flipped, colors }: ArrowsProps) {
+export function Arrows({ arrows, flipped, colors, opacity = 1 }: ArrowsProps) {
   return (
     <svg
       viewBox="0 0 8 8"
-      className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+      className="pointer-events-none absolute inset-0 z-10 h-full w-full transition-opacity duration-700"
+      style={{ opacity }}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {arrows.map((a) => {
+      {arrows.map((a, i) => {
         const from = center(a.from, flipped);
         const to = center(a.to, flipped);
         const dx = to.x - from.x;
@@ -62,7 +65,7 @@ export function Arrows({ arrows, flipped, colors }: ArrowsProps) {
         const isKnight =
           (Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1);
         const fill = colors[a.color];
-        const key = `${a.from}-${a.to}`;
+        const key = `${a.from}-${a.to}-${i}`;
 
         if (isKnight) {
           // L-shape: travel the long leg first, then the short leg.

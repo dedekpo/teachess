@@ -1,30 +1,33 @@
 "use client";
 
+import { useLang } from "@/lib/i18n/LangProvider";
+import { UI } from "@/lib/i18n/ui";
+import type { Lang } from "@/lib/i18n/lang";
 import type { GameStatus as Status } from "@/lib/useChessGame";
 
-const NAME = { w: "White", b: "Black" } as const;
-
-export function statusText(status: Status): { title: string; subtitle: string } {
+export function statusText(status: Status, lang: Lang): { title: string; subtitle: string } {
+  const t = UI[lang].gameStatus;
+  const name = { w: t.white, b: t.black } as const;
   switch (status.kind) {
     case "checkmate":
-      return { title: "Checkmate", subtitle: `${NAME[status.winner!]} wins` };
+      return { title: t.checkmate, subtitle: t.wins(name[status.winner!]) };
     case "stalemate":
-      return { title: "Draw", subtitle: "Stalemate" };
+      return { title: t.draw, subtitle: t.stalemate };
     case "threefold":
-      return { title: "Draw", subtitle: "Threefold repetition" };
+      return { title: t.draw, subtitle: t.threefold };
     case "fifty-move":
-      return { title: "Draw", subtitle: "50-move rule" };
+      return { title: t.draw, subtitle: t.fifty };
     case "insufficient":
-      return { title: "Draw", subtitle: "Insufficient material" };
+      return { title: t.draw, subtitle: t.insufficient };
     case "check":
-      return { title: `${NAME[status.turn]} to move`, subtitle: "Check!" };
+      return { title: t.toMove(name[status.turn]), subtitle: t.check };
     default:
-      return { title: `${NAME[status.turn]} to move`, subtitle: "" };
+      return { title: t.toMove(name[status.turn]), subtitle: "" };
   }
 }
 
 export function GameStatus({ status }: { status: Status }) {
-  const { title, subtitle } = statusText(status);
+  const { title, subtitle } = statusText(status, useLang());
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <span

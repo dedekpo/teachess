@@ -4,10 +4,12 @@ import type { Chess, Color, Move, PieceSymbol, Square } from "chess.js";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ARROW_RGBA,
+  COACH_SQUARE_RGBA,
   HIGHLIGHT_RGBA,
   FILES,
   RANKS,
   type Arrow,
+  type CoachSquare,
   type SquareHighlightColor,
   arrowColorFromModifiers,
   fromDisplay,
@@ -16,7 +18,9 @@ import {
   pieceImage,
   toDisplay,
 } from "@/lib/chess-utils";
+import type { MoveClass } from "@/lib/game-record";
 import { Arrows } from "./Arrows";
+import { MoveBadge } from "./MoveBadge";
 import { PromotionDialog } from "./PromotionDialog";
 
 type BoardMatrix = ReturnType<Chess["board"]>;
@@ -32,10 +36,16 @@ interface BoardProps {
   onMove: (from: Square, to: Square, promotion?: PieceSymbol) => boolean;
   /** Incremented by the parent to clear selection/annotations (e.g. new game, undo). */
   resetKey: number;
-  /** Arrows drawn by the engine panel / coach (not cleared by left-click). */
+  /** Arrows drawn by the engine panel (not cleared by left-click). */
   engineArrows?: Arrow[];
+  /** Arrows drawn by the coach while it speaks (own layer so it can fade). */
+  coachArrows?: Arrow[];
   /** Squares highlighted by the coach (not cleared by left-click). */
-  coachSquares?: Square[];
+  coachSquares?: CoachSquare[];
+  /** Opacity of the coach layer (arrows + squares), for fading out. */
+  coachOpacity?: number;
+  /** Classification badge drawn on the square the last move landed on (chess.com style). */
+  moveBadge?: { square: Square; classification: Exclude<MoveClass, "unknown"> } | null;
   /** Which colours the human may move. Defaults to both. */
   playableColors?: Color[];
   /** Extra overlays rendered on top of the board (e.g. the engine panel). */
@@ -70,7 +80,10 @@ export function Board({
   onMove,
   resetKey,
   engineArrows = [],
+  coachArrows = [],
   coachSquares = [],
+  coachOpacity = 1,
+  moveBadge = null,
   playableColors = ["w", "b"],
   children,
 }: BoardProps) {
@@ -279,7 +292,7 @@ export function Board({
           const target = targetSet.get(sq);
           const isCapture = target !== undefined && (target.flags.includes("c") || target.flags.includes("e"));
           const userHighlight = highlights.get(sq);
-          const coachHighlight = coachSquares.includes(sq);
+          const coachHighlight = coachSquares.find((c) => c.square === sq)?.level;
           const inCheck = checkedKingSquare === sq;
           const isHover = drag !== null && hoverSquare === sq && sq !== drag.from;
           const hidden = drag?.from === sq;
@@ -304,7 +317,14 @@ export function Board({
                 />
               )}
               {coachHighlight && (
-                <div className="absolute inset-0" style={{ backgroundColor: "rgba(155, 89, 182, 0.55)" }} />
+                <div
+                  className="absolute inset-0 transition-opacity duration-700"
+                  style={{
+                    backgroundColor: COACH_SQUARE_RGBA[coachHighlight],
+                    opacity: coachOpacity,
+                    boxShadow: coachHighlight === "focus" ? "inset 0 0 0 min(0.6vw,4px) rgba(155, 89, 182, 0.95)" : undefined,
+                  }}
+                />
               )}
               {inCheck && (
                 <div
@@ -366,6 +386,9 @@ export function Board({
       </div>
 
       <Arrows arrows={[...engineArrows, ...arrows]} flipped={flipped} colors={ARROW_RGBA} />
+      {coachArrows.length > 0 && <Arrows arrows={coachArrows} flipped={flipped} colors={ARROW_RGBA} opacity={coachOpacity} />}
+
+      {moveBadge && <BadgeLayer square={moveBadge.square} classification={moveBadge.classification} flipped={flipped} />}
 
       {children}
 
@@ -391,6 +414,36 @@ export function Board({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Half the badge's width, in squares: how far it may hang outside the square it belongs to. */
+const BADGE_HALF = 0.216;
+
+/**
+ * The badge sits on the top-right corner of its square and overflows into the neighbours, so it lives in its own
+ * layer above the whole grid rather than inside one square (siblings later in the grid would paint over it).
+ * On the edge files and the top rank it is pulled back inside, where the board would clip it.
+ */
+function BadgeLayer({ square, classification, flipped }: { square: Square; classification: Exclude<MoveClass, "unknown">; flipped: boolean }) {
+  const { col, row } = toDisplay(square, flipped);
+  const cx = Math.min(col + 0.84, 8 - BADGE_HALF - 0.02);
+  const cy = Math.max(row + 0.02, BADGE_HALF + 0.02);
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10">
+      <div
+        className="absolute drop-shadow-md"
+        style={{
+          left: `${cx * 12.5}%`,
+          top: `${cy * 12.5}%`,
+          width: `${BADGE_HALF * 2 * 12.5}%`,
+          height: `${BADGE_HALF * 2 * 12.5}%`,
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <MoveBadge classification={classification} />
+      </div>
     </div>
   );
 }

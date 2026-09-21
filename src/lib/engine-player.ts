@@ -1,5 +1,7 @@
 "use client";
 
+import type { Lang } from "./i18n/lang";
+
 /**
  * A second Stockfish worker used for (a) choosing the tutor's own moves at a
  * chosen strength and (b) evaluating hypothetical moves for the tutor's tools.
@@ -7,16 +9,16 @@
  */
 
 export interface StrengthPreset {
-  id: "iniciante" | "intermediario" | "avancado";
-  label: string;
+  id: "beginner" | "intermediate" | "advanced";
+  label: Record<Lang, string>;
   elo: number; // Stockfish UCI_Elo (min 1320)
   depth: number;
 }
 
 export const STRENGTH_PRESETS: StrengthPreset[] = [
-  { id: "iniciante", label: "Iniciante (~1320)", elo: 1320, depth: 6 },
-  { id: "intermediario", label: "Intermediário (~1700)", elo: 1700, depth: 10 },
-  { id: "avancado", label: "Avançado (~2200)", elo: 2200, depth: 14 },
+  { id: "beginner", label: { en: "Beginner (~1320)", "pt-BR": "Iniciante (~1320)" }, elo: 1320, depth: 6 },
+  { id: "intermediate", label: { en: "Intermediate (~1700)", "pt-BR": "Intermediário (~1700)" }, elo: 1700, depth: 10 },
+  { id: "advanced", label: { en: "Advanced (~2200)", "pt-BR": "Avançado (~2200)" }, elo: 2200, depth: 14 },
 ];
 
 export interface SearchResult {

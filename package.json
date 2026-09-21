@@ -2,6 +2,12 @@
   "name": "teachess",
   "version": "0.1.0",
   "private": true,
+  "description": "Real-time voice chess instructor built on the OpenAI GPT-Live-1 API with Stockfish in the browser.",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dedekpo/teachess.git"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CLASS_COLOR, CLASS_LABEL_PT, CLASS_SYMBOL, type MoveRecord } from "@/lib/game-record";
+import { CLASS_COLOR, CLASS_LABELS, CLASS_SYMBOL, type MoveRecord } from "@/lib/game-record";
+import { useLang } from "@/lib/i18n/LangProvider";
+import { UI } from "@/lib/i18n/ui";
 
 function Cell({ r, current }: { r: MoveRecord | undefined; current: boolean }) {
+  const lang = useLang();
   if (!r) return <span />;
   const symbol = CLASS_SYMBOL[r.classification];
   return (
     <span
       className={`flex items-center gap-1 rounded px-1 ${current ? "bg-white/15 font-bold" : ""}`}
-      title={`${CLASS_LABEL_PT[r.classification]}${r.after ? ` · ${r.after.text}` : ""}${r.bestAlternative ? ` · melhor: ${r.bestAlternative}` : ""}`}
+      title={`${CLASS_LABELS[lang][r.classification]}${r.after ? ` · ${r.after.text}` : ""}${r.bestAlternative ? ` · ${UI[lang].moveList.best}: ${r.bestAlternative}` : ""}`}
     >
       <span>{r.san}</span>
       {symbol && (
@@ -23,6 +26,7 @@ function Cell({ r, current }: { r: MoveRecord | undefined; current: boolean }) {
 }
 
 export function MoveList({ records }: { records: MoveRecord[] }) {
+  const t = UI[useLang()].moveList;
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,7 +41,7 @@ export function MoveList({ records }: { records: MoveRecord[] }) {
 
   return (
     <div className="flex-1 overflow-y-auto font-mono text-sm">
-      {rows.length === 0 && <p className="px-3 py-2 text-neutral-400">No moves yet.</p>}
+      {rows.length === 0 && <p className="px-3 py-2 text-neutral-400">{t.noMoves}</p>}
       {rows.map((row, i) => (
         <div
           key={row.n}

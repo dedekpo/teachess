@@ -31,6 +31,11 @@ function computeStatus(chess: Chess): GameStatus {
   return { kind: "playing", over: false, winner: null, turn };
 }
 
+/** Status of an arbitrary position, for a move that has been decided but not played yet. */
+export function statusForFen(fen: string): GameStatus {
+  return computeStatus(new Chess(fen));
+}
+
 export function useChessGame() {
   // The engine instance is mutable; `version` is bumped after each mutation so
   // the derived snapshot below recomputes.
@@ -83,20 +88,11 @@ export function useChessGame() {
     bump();
   }, [chess, bump]);
 
-  const { board, history, fen, status, checkedKingSquare } = snapshot;
-  const lastMove = history.length > 0 ? history[history.length - 1] : null;
-
-  return {
-    board,
-    history,
-    fen,
-    status,
-    turn: status.turn,
-    lastMove,
-    checkedKingSquare,
-    legalMoves,
-    makeMove,
-    undo,
-    reset,
-  };
+  // One object per position. Effects that list `game` as a dependency must not re-run on every render: a fresh
+  // object each render made the tutor's reply effect restart (and queue another engine search) on every engine flush.
+  return useMemo(() => {
+    const { board, history, fen, status, checkedKingSquare } = snapshot;
+    const lastMove = history.length > 0 ? history[history.length - 1] : null;
+    return { board, history, fen, status, turn: status.turn, lastMove, checkedKingSquare, legalMoves, makeMove, undo, reset };
+  }, [snapshot, legalMoves, makeMove, undo, reset]);
 }

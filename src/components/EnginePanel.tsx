@@ -4,6 +4,8 @@ import type { Color } from "chess.js";
 import { useMemo } from "react";
 import type { EngineState } from "@/lib/useEngine";
 import { formatScoreWhite, parseUci, pvToSan, type UciMove } from "@/lib/engine-format";
+import { useLang } from "@/lib/i18n/LangProvider";
+import { UI } from "@/lib/i18n/ui";
 
 export type { UciMove };
 
@@ -14,6 +16,7 @@ interface EnginePanelProps {
 }
 
 export function EnginePanel({ engine, turn, onHoverMove }: EnginePanelProps) {
+  const t = UI[useLang()].engine;
   const rows = useMemo(() => {
     if (!engine.fen) return [];
     return engine.lines.map((line) => {
@@ -25,11 +28,11 @@ export function EnginePanel({ engine, turn, onHoverMove }: EnginePanelProps) {
 
   const headline =
     engine.status === "loading"
-      ? "Loading engine…"
+      ? t.loading
       : engine.status === "error"
-        ? `Engine error: ${engine.error ?? "unknown"}`
+        ? t.error(engine.error ?? "unknown")
         : engine.status === "idle"
-          ? "Engine idle"
+          ? t.idle
           : null;
 
   return (
@@ -46,16 +49,16 @@ export function EnginePanel({ engine, turn, onHoverMove }: EnginePanelProps) {
         {engine.status === "thinking" && rows.length > 0 && (
           <span className="flex items-center gap-1">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-            depth {engine.depth}
+            {t.depth} {engine.depth}
           </span>
         )}
-        {engine.status === "done" && rows.length > 0 && <span>depth {engine.depth}</span>}
+        {engine.status === "done" && rows.length > 0 && <span>{t.depth} {engine.depth}</span>}
       </div>
 
       {headline && <div className="px-2 pb-2 text-xs text-neutral-300">{headline}</div>}
 
       {!headline && rows.length === 0 && (
-        <div className="px-2 pb-2 text-xs text-neutral-300">Thinking…</div>
+        <div className="px-2 pb-2 text-xs text-neutral-300">{t.thinking}</div>
       )}
 
       <ul className="flex flex-col">

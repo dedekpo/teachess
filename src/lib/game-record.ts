@@ -1,6 +1,7 @@
 import { Chess, type Color, type Move, type PieceSymbol, type Square } from "chess.js";
 import type { AnalysisSnapshot } from "./useEngine";
 import { formatScoreWhite, pvToSan, scoreToPawns } from "./engine-format";
+import type { Lang } from "./i18n/lang";
 
 export type MoveClass =
   | "brilliant"
@@ -40,15 +41,28 @@ export interface MoveRecord {
   captured: PieceSymbol | null;
 }
 
-export const CLASS_LABEL_PT: Record<MoveClass, string> = {
-  brilliant: "brilhante",
-  best: "melhor lance",
-  excellent: "excelente",
-  good: "bom",
-  inaccuracy: "imprecisão",
-  mistake: "erro",
-  blunder: "erro grave",
-  unknown: "sem avaliação",
+/** Classification as the models and the move list see it, per language. */
+export const CLASS_LABELS: Record<Lang, Record<MoveClass, string>> = {
+  en: {
+    brilliant: "brilliant",
+    best: "best move",
+    excellent: "excellent",
+    good: "good",
+    inaccuracy: "inaccuracy",
+    mistake: "mistake",
+    blunder: "blunder",
+    unknown: "not evaluated",
+  },
+  "pt-BR": {
+    brilliant: "brilhante",
+    best: "melhor lance",
+    excellent: "excelente",
+    good: "bom",
+    inaccuracy: "imprecisão",
+    mistake: "erro",
+    blunder: "erro grave",
+    unknown: "sem avaliação",
+  },
 };
 
 export const CLASS_SYMBOL: Record<MoveClass, string> = {
@@ -74,8 +88,36 @@ export const CLASS_COLOR: Record<MoveClass, string> = {
 };
 
 const PIECE_VALUE: Record<PieceSymbol, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-const PIECE_PT: Record<PieceSymbol, string> = { p: "peão", n: "cavalo", b: "bispo", r: "torre", q: "dama", k: "rei" };
-const PIECE_PT_PLURAL: Record<PieceSymbol, string> = { p: "peões", n: "cavalos", b: "bispos", r: "torres", q: "damas", k: "reis" };
+const PIECE_NAMES: Record<Lang, { one: Record<PieceSymbol, string>; many: Record<PieceSymbol, string> }> = {
+  en: {
+    one: { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" },
+    many: { p: "pawns", n: "knights", b: "bishops", r: "rooks", q: "queens", k: "kings" },
+  },
+  "pt-BR": {
+    one: { p: "peão", n: "cavalo", b: "bispo", r: "torre", q: "dama", k: "rei" },
+    many: { p: "peões", n: "cavalos", b: "bispos", r: "torres", q: "damas", k: "reis" },
+  },
+};
+
+/** Sentences of the material summary, per language. */
+const MATERIAL_TEXT = {
+  en: {
+    side: { w: "White", b: "Black" } as Record<Color, string>,
+    missing: (side: string, names: string[]) => `${side} no longer has: ${names.join(", ")}.`,
+    equal: "Material is equal.",
+    up: (side: string, points: number) => `${side} is up ${points} point(s) of material.`,
+    mateFor: { w: "mate for White", b: "mate for Black" } as Record<Color, string>,
+    betterWas: (san: string) => `, better was ${san}`,
+  },
+  "pt-BR": {
+    side: { w: "Brancas", b: "Pretas" } as Record<Color, string>,
+    missing: (side: string, names: string[]) => `${side} não têm mais: ${names.join(", ")}.`,
+    equal: "Material igual.",
+    up: (side: string, points: number) => `${side} têm ${points} ponto(s) de material a mais.`,
+    mateFor: { w: "mate", b: "mate contra" } as Record<Color, string>,
+    betterWas: (san: string) => `, melhor era ${san}`,
+  },
+} satisfies Record<Lang, unknown>;
 
 export function positionEvalFromSnapshot(snap: AnalysisSnapshot | undefined): PositionEval | null {
   if (!snap || snap.lines.length === 0) return null;
@@ -175,10 +217,14 @@ export interface MaterialSummary {
   /** Points from White's perspective (+ means White is up material). */
   balance: number;
   pieces: { w: string[]; b: string[] }; // e.g. "Qd1"
-  text: string; // Portuguese description for the tutor
+  /** Piece types (names in the lesson language) of which the side has more than one; naming one of these needs its square. */
+  duplicated: { w: string[]; b: string[] };
+  text: string; // plain-language description for the tutor
 }
 
-export function materialSummary(fen: string): MaterialSummary {
+export function materialSummary(fen: string, lang: Lang): MaterialSummary {
+  const N = PIECE_NAMES[lang];
+  const T = MATERIAL_TEXT[lang];
   const chess = new Chess(fen);
   const pieces = { w: [] as string[], b: [] as string[] };
   const counts: Record<Color, Record<PieceSymbol, string[]>> = {
@@ -197,46 +243,48 @@ export function materialSummary(fen: string): MaterialSummary {
   const describe = (c: Color) =>
     (["k", "q", "r", "b", "n", "p"] as PieceSymbol[])
       .filter((t) => counts[c][t].length > 0)
-      .map((t) => `${counts[c][t].length > 1 ? PIECE_PT_PLURAL[t] : PIECE_PT[t]} ${counts[c][t].join(" ")}`)
+      .map((t) => `${counts[c][t].length > 1 ? N.many[t] : N.one[t]} ${counts[c][t].join(" ")}`)
       .join(", ");
   const missing = (c: Color) =>
     (["q", "r", "b", "n"] as PieceSymbol[])
       .filter((t) => counts[c][t].length === 0)
-      .map((t) => PIECE_PT[t]);
-  const parts = [`Brancas: ${describe("w")}.`, `Pretas: ${describe("b")}.`];
+      .map((t) => N.one[t]);
+  const parts = [`${T.side.w}: ${describe("w")}.`, `${T.side.b}: ${describe("b")}.`];
   const mw = missing("w");
   const mb = missing("b");
-  if (mw.length) parts.push(`Brancas não têm mais: ${mw.join(", ")}.`);
-  if (mb.length) parts.push(`Pretas não têm mais: ${mb.join(", ")}.`);
+  if (mw.length) parts.push(T.missing(T.side.w, mw));
+  if (mb.length) parts.push(T.missing(T.side.b, mb));
   parts.push(
     balance === 0
-      ? "Material igual."
-      : `${balance > 0 ? "Brancas" : "Pretas"} têm ${Math.abs(balance)} ponto(s) de material a mais.`,
+      ? T.equal
+      : T.up(balance > 0 ? T.side.w : T.side.b, Math.abs(balance)),
   );
-  return { balance, pieces, text: parts.join(" ") };
+  const duplicated = (c: Color) =>
+    (["q", "r", "b", "n", "p"] as PieceSymbol[]).filter((t) => counts[c][t].length > 1).map((t) => N.one[t]);
+  return { balance, pieces, duplicated: { w: duplicated("w"), b: duplicated("b") }, text: parts.join(" ") };
 }
 
 // ---------- text for the tutor ----------
 
-function fmt(n: number | null | undefined): string {
+function fmt(n: number | null | undefined, lang: Lang): string {
   if (n === null || n === undefined) return "?";
-  if (n >= 100) return "mate";
-  if (n <= -100) return "mate contra";
+  if (n >= 100) return MATERIAL_TEXT[lang].mateFor.w;
+  if (n <= -100) return MATERIAL_TEXT[lang].mateFor.b;
   return `${n > 0 ? "+" : ""}${n.toFixed(1)}`;
 }
 
-/** One line per move, e.g. "12. Dh5?? erro grave (+1.2 → -3.4), melhor: Cf3". */
-export function recordLine(r: MoveRecord): string {
+/** One line per move, e.g. "12. Qh5?? blunder (+1.2 → -3.4), better was Nf3". */
+export function recordLine(r: MoveRecord, lang: Lang): string {
   const num = r.color === "w" ? `${r.moveNumber}.` : `${r.moveNumber}...`;
-  const cls = r.classification === "unknown" ? "" : ` ${CLASS_LABEL_PT[r.classification]}`;
-  const evals = ` (${fmt(r.before?.pawns)} → ${fmt(r.after?.pawns)})`;
-  const alt = r.bestAlternative && ["inaccuracy", "mistake", "blunder"].includes(r.classification) ? `, melhor era ${r.bestAlternative}` : "";
+  const cls = r.classification === "unknown" ? "" : ` ${CLASS_LABELS[lang][r.classification]}`;
+  const evals = ` (${fmt(r.before?.pawns, lang)} → ${fmt(r.after?.pawns, lang)})`;
+  const alt = r.bestAlternative && ["inaccuracy", "mistake", "blunder"].includes(r.classification) ? MATERIAL_TEXT[lang].betterWas(r.bestAlternative) : "";
   return `${num} ${r.san}${CLASS_SYMBOL[r.classification]}${cls}${evals}${alt}`;
 }
 
-export function recordsText(records: MoveRecord[], lastN?: number): string {
+export function recordsText(records: MoveRecord[], lang: Lang, lastN?: number): string {
   const slice = lastN ? records.slice(-lastN) : records;
-  return slice.map(recordLine).join("; ");
+  return slice.map((r) => recordLine(r, lang)).join("; ");
 }
 
 export interface RecordJson {
@@ -247,12 +295,12 @@ export interface RecordJson {
   evalAfter: string | null;
   loss: number | null;
   classification: MoveClass;
-  classificationPt: string;
+  classificationLabel: string;
   bestAlternative: string | null;
   captured: string | null;
 }
 
-export function recordToJson(r: MoveRecord): RecordJson {
+export function recordToJson(r: MoveRecord, lang: Lang): RecordJson {
   return {
     ply: r.ply,
     move: `${r.moveNumber}${r.color === "w" ? "." : "..."} ${r.san}`,
@@ -261,18 +309,18 @@ export function recordToJson(r: MoveRecord): RecordJson {
     evalAfter: r.after?.text ?? null,
     loss: r.loss === null ? null : Number(r.loss.toFixed(2)),
     classification: r.classification,
-    classificationPt: CLASS_LABEL_PT[r.classification],
+    classificationLabel: CLASS_LABELS[lang][r.classification],
     bestAlternative: r.bestAlternative,
-    captured: r.captured ? PIECE_PT[r.captured] : null,
+    captured: r.captured ? PIECE_NAMES[lang].one[r.captured] : null,
   };
 }
 
 /** Worst moves per side, for a quick "where did it go wrong" summary. */
-export function worstMoves(records: MoveRecord[], color: Color, n = 3): RecordJson[] {
+export function worstMoves(records: MoveRecord[], color: Color, lang: Lang, n = 3): RecordJson[] {
   return records
     .filter((r) => r.color === color && r.loss !== null)
     .sort((a, b) => (b.loss ?? 0) - (a.loss ?? 0))
     .slice(0, n)
     .filter((r) => (r.loss ?? 0) >= 0.5)
-    .map(recordToJson);
+    .map((r) => recordToJson(r, lang));
 }

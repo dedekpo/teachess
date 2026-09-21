@@ -4,7 +4,18 @@ export const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 export const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 
 export type SquareHighlightColor = "red" | "green" | "blue" | "yellow";
-export type ArrowColor = "orange" | "green" | "blue" | "red" | "engine" | "coach";
+export type ArrowColor =
+  | "orange"
+  | "green"
+  | "blue"
+  | "red"
+  | "engine"
+  | "coach"
+  | "coachDim"
+  | "capture"
+  | "captureDim"
+  | "check"
+  | "checkDim";
 
 export interface Arrow {
   from: Square;
@@ -63,6 +74,22 @@ export const ARROW_RGBA: Record<ArrowColor, string> = {
   red: "rgba(235, 97, 80, 0.85)",
   engine: "rgba(38, 140, 220, 0.9)",
   coach: "rgba(155, 89, 182, 0.9)",
+  coachDim: "rgba(155, 89, 182, 0.35)",
+  capture: "rgba(235, 97, 80, 0.9)",
+  captureDim: "rgba(235, 97, 80, 0.35)",
+  check: "rgba(255, 40, 40, 0.95)",
+  checkDim: "rgba(255, 40, 40, 0.35)",
+};
+
+/** Coach highlight: the square being talked about right now vs. the ones mentioned just before. */
+export type CoachLevel = "focus" | "dim";
+export interface CoachSquare {
+  square: Square;
+  level: CoachLevel;
+}
+export const COACH_SQUARE_RGBA: Record<CoachLevel, string> = {
+  focus: "rgba(155, 89, 182, 0.6)",
+  dim: "rgba(155, 89, 182, 0.28)",
 };
 
 export function highlightColorFromModifiers(e: {
